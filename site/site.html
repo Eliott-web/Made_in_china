@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Made in China</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Made <span>in</span> China</h1>
+        <div id="status">
+            <div id="status-dot"></div>
+            <span id="status-text">Waiting</span>
+        </div>
+    </header>
+
+    <main>
+        <div id="game-area">
+            <div id="game-state">Waiting</div>
+            <div id="score-display">—</div>
+        </div>
+
+        <div id="data-feed">
+            <div class="data-card" data-key="distance">
+                <div class="data-label">Distance</div>
+                <div class="data-value">—</div>
+            </div>
+            <div class="data-card" data-key="time">
+                <div class="data-label">Time</div>
+                <div class="data-value">—</div>
+            </div>
+            <div class="data-card" data-key="state">
+                <div class="data-label">Pico State</div>
+                <div class="data-value">—</div>
+            </div>
+        </div>
+
+        <div id="controls">
+            <button id="btn-start">Start</button>
+            <button id="btn-reset">Reset</button>
+        </div>
+    </main>
+
+    <footer>PICO 2W &mdash; 192.168.4.1</footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
