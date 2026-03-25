@@ -15,31 +15,81 @@
         </div>
     </header>
 
+    <nav>
+        <button class="nav-btn active" data-view="view-game">Game</button>
+        <button class="nav-btn" data-view="view-profiles">Profiles</button>
+        <button class="nav-btn" data-view="view-highscores">Highscores</button>
+    </nav>
+
     <main>
-        <div id="game-area">
-            <div id="game-state">Waiting</div>
-            <div id="score-display">—</div>
+
+        <div id="view-game" class="view active">
+            <div id="game-setup">
+                <div class="setup-row">
+                    <label>Player 1</label>
+                    <select id="select-j1"></select>
+                </div>
+                <div class="setup-row">
+                    <label>Player 2</label>
+                    <select id="select-j2"></select>
+                </div>
+                <div class="setup-row">
+                    <label>Rounds</label>
+                    <input id="input-rounds" type="number" value="3" min="1" max="20">
+                </div>
+            </div>
+
+            <div id="game-area">
+                <div id="game-state">Waiting</div>
+                <div id="score-display">—</div>
+            </div>
+
+            <div id="data-feed">
+                <div class="data-card" data-key="distance">
+                    <div class="data-label">Distance</div>
+                    <div class="data-value">—</div>
+                </div>
+                <div class="data-card" data-key="time">
+                    <div class="data-label">Time</div>
+                    <div class="data-value">—</div>
+                </div>
+                <div class="data-card" data-key="state">
+                    <div class="data-label">Pico State</div>
+                    <div class="data-value">—</div>
+                </div>
+            </div>
+
+            <div id="controls">
+                <button id="btn-start">Start</button>
+                <button id="btn-stop">Stop</button>
+                <button id="btn-reset">Reset</button>
+            </div>
         </div>
 
-        <div id="data-feed">
-            <div class="data-card" data-key="distance">
-                <div class="data-label">Distance</div>
-                <div class="data-value">—</div>
+        <div id="view-profiles" class="view">
+            <div id="profile-create">
+                <input id="input-profile-name" type="text" placeholder="Profile name" maxlength="16">
+                <button id="btn-create-profile">Create</button>
             </div>
-            <div class="data-card" data-key="time">
-                <div class="data-label">Time</div>
-                <div class="data-value">—</div>
-            </div>
-            <div class="data-card" data-key="state">
-                <div class="data-label">Pico State</div>
-                <div class="data-value">—</div>
-            </div>
+            <div id="profile-list"></div>
         </div>
 
-        <div id="controls">
-            <button id="btn-start">Start</button>
-            <button id="btn-reset">Reset</button>
+        <div id="view-highscores" class="view">
+            <table id="highscores-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Games</th>
+                        <th>Won</th>
+                        <th>Rounds</th>
+                        <th>R. Won</th>
+                        <th>Win Rate</th>
+                    </tr>
+                </thead>
+                <tbody id="highscores-body"></tbody>
+            </table>
         </div>
+
     </main>
 
     <footer>PICO 2W &mdash; 192.168.4.1</footer>
