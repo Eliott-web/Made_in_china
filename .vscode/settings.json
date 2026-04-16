@@ -12,5 +12,17 @@
     "python.analysis.extraPaths": [
         "~/.micropico-stubs/included",
         "./pico/component"
+    ],
+    "python-envs.pythonProjects": [
+        {
+            "path": "pico/blink.py",
+            "envManager": "ms-python.python:venv",
+            "packageManager": "ms-python.python:pip"
+        },
+        {
+            "path": ".",
+            "envManager": "ms-python.python:system",
+            "packageManager": "ms-python.python:pip"
+        }
     ]
 }

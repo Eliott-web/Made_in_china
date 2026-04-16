@@ -1,87 +1,79 @@
-import utime
-import gc
+from machine import I2C, Pin
+from utime import sleep_ms
 
-from lcd_api import LcdApi
-from machine import I2C
+# ===== CONSTANTES LCD =====
+LCD_CLR             = 0x01
+LCD_HOME            = 0x02
+LCD_ENTRY_MODE      = 0x04
+LCD_ENTRY_INC       = 0x02
+LCD_ON_CTRL         = 0x08
+LCD_ON_DISPLAY      = 0x04
+LCD_FUNCTION        = 0x20
+LCD_FUNCTION_2LINES = 0x08
+LCD_SET_DDRAM       = 0x80
 
-# PCF8574 pin definitions
-MASK_RS = 0x01       # P0
-MASK_RW = 0x02       # P1
-MASK_E  = 0x04       # P2
+MASK_RS = 0x01
+MASK_E  = 0x04
+MASK_BL = 0x08
 
-SHIFT_BACKLIGHT = 3  # P3
-SHIFT_DATA      = 4  # P4-P7
+_ROW_OFFSETS = (0x00, 0x40)
 
-class I2cLcd(LcdApi):
-    
-    #Implements a HD44780 character LCD connected via PCF8574 on I2C
 
-    def __init__(self, i2c, i2c_addr, num_lines, num_columns):
+class I2cLcd:
+
+    def __init__(self, i2c, addr, num_lines=2, num_columns=16):
         self.i2c = i2c
-        self.i2c_addr = i2c_addr
-        self.i2c.writeto(self.i2c_addr, bytes([0]))
-        utime.sleep_ms(20)   # Allow LCD time to powerup
-        # Send reset 3 times
-        self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
-        utime.sleep_ms(5)    # Need to delay at least 4.1 msec
-        self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
-        utime.sleep_ms(1)
-        self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
-        utime.sleep_ms(1)
-        # Put LCD into 4-bit mode
-        self.hal_write_init_nibble(self.LCD_FUNCTION)
-        utime.sleep_ms(1)
-        LcdApi.__init__(self, num_lines, num_columns)
-        cmd = self.LCD_FUNCTION
-        if num_lines > 1:
-            cmd |= self.LCD_FUNCTION_2LINES
-        self.hal_write_command(cmd)
-        gc.collect()
+        self.addr = addr
+        self.backlight = MASK_BL
 
-    def hal_write_init_nibble(self, nibble):
-        # Writes an initialization nibble to the LCD.
-        # This particular function is only used during initialization.
-        byte = ((nibble >> 4) & 0x0f) << SHIFT_DATA
-        self.i2c.writeto(self.i2c_addr, bytes([byte | MASK_E]))
-        self.i2c.writeto(self.i2c_addr, bytes([byte]))
-        gc.collect()
-        
-    def hal_backlight_on(self):
-        # Allows the hal layer to turn the backlight on
-        self.i2c.writeto(self.i2c_addr, bytes([1 << SHIFT_BACKLIGHT]))
-        gc.collect()
-        
-    def hal_backlight_off(self):
-        #Allows the hal layer to turn the backlight off
-        self.i2c.writeto(self.i2c_addr, bytes([0]))
-        gc.collect()
-        
-    def hal_write_command(self, cmd):
-        # Write a command to the LCD. Data is latched on the falling edge of E.
-        byte = ((self.backlight << SHIFT_BACKLIGHT) |
-                (((cmd >> 4) & 0x0f) << SHIFT_DATA))
-        self.i2c.writeto(self.i2c_addr, bytes([byte | MASK_E]))
-        self.i2c.writeto(self.i2c_addr, bytes([byte]))
-        byte = ((self.backlight << SHIFT_BACKLIGHT) |
-                ((cmd & 0x0f) << SHIFT_DATA))
-        self.i2c.writeto(self.i2c_addr, bytes([byte | MASK_E]))
-        self.i2c.writeto(self.i2c_addr, bytes([byte]))
-        if cmd <= 3:
-            # The home and clear commands require a worst case delay of 4.1 msec
-            utime.sleep_ms(5)
-        gc.collect()
+        sleep_ms(50)
 
-    def hal_write_data(self, data):
-        # Write data to the LCD. Data is latched on the falling edge of E.
-        byte = (MASK_RS |
-                (self.backlight << SHIFT_BACKLIGHT) |
-                (((data >> 4) & 0x0f) << SHIFT_DATA))
-        self.i2c.writeto(self.i2c_addr, bytes([byte | MASK_E]))
-        self.i2c.writeto(self.i2c_addr, bytes([byte]))
-        byte = (MASK_RS |
-                (self.backlight << SHIFT_BACKLIGHT) |
-                ((data & 0x0f) << SHIFT_DATA))      
-        self.i2c.writeto(self.i2c_addr, bytes([byte | MASK_E]))
-        self.i2c.writeto(self.i2c_addr, bytes([byte]))
-        gc.collect()
+        self._write_cmd(0x03)
+        sleep_ms(5)
+        self._write_cmd(0x03)
+        sleep_ms(5)
+        self._write_cmd(0x03)
+        sleep_ms(5)
+        self._write_cmd(0x02)
+
+        self._write_cmd(LCD_FUNCTION | LCD_FUNCTION_2LINES)
+        self._write_cmd(LCD_ON_CTRL | LCD_ON_DISPLAY)
+        self.clear()
+        self._write_cmd(LCD_ENTRY_MODE | LCD_ENTRY_INC)
+
+    def _write_byte(self, data):
+        self.i2c.writeto(self.addr, bytes([data | self.backlight]))
+
+    def _pulse(self, data):
+        self._write_byte(data | MASK_E)
+        sleep_ms(1)
+        self._write_byte(data & ~MASK_E)
+        sleep_ms(1)
+
+    def _write_cmd(self, cmd):
+        high = cmd & 0xF0
+        low  = (cmd << 4) & 0xF0
+        self._write_byte(high)
+        self._pulse(high)
+        self._write_byte(low)
+        self._pulse(low)
+
+    def _write_data(self, data):
+        high = (data & 0xF0) | MASK_RS
+        low  = ((data << 4) & 0xF0) | MASK_RS
+        self._write_byte(high)
+        self._pulse(high)
+        self._write_byte(low)
+        self._pulse(low)
+
+    def clear(self):
+        self._write_cmd(LCD_CLR)
+        sleep_ms(2)
+
+    def move_to(self, col, row):
+        self._write_cmd(LCD_SET_DDRAM | (_ROW_OFFSETS[row] + col))
+
+    def putstr(self, text):
+        for ch in text:
+            self._write_data(ord(ch))
 

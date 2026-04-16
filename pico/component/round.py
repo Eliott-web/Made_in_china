@@ -11,20 +11,25 @@ class Round:
     _RESULT      = 3
     _DONE        = 4
 
-    def __init__(self, lcd, sensor, button, round_number):
+    def __init__(self, lcd, sensor, button, round_number, led1, led2):
         global rounds
         self.lcd = lcd
         self.sensor = sensor
         self.button = button
         self.round_number = round_number
-        self.target = random.randint(10, 150)
+        self.led1 = led1
+        self.led2 = led2
+        self.target = random.randint(9, 40)
         self._state = self._ANNOUNCE
         self._current_player = 1
         self._distances = [0.0, 0.0]
         self._prev_btn = 1
+        self._blink_tick = 0
         self._needs_redraw = True
         rounds.append(self)
         self.active = True
+        led1.value(0)
+        led2.value(0)
 
     def _measure(self):
         try:
@@ -53,11 +58,21 @@ class Round:
         self.lcd.move_to(0, 1)
         self.lcd.putstr("Cible: " + str(self.target) + " cm")
 
-    def _draw_player_turn(self, dist):
-        self.lcd.clear()
-        self.lcd.putstr("J" + str(self._current_player) + ": " + str(dist) + " cm")
-        self.lcd.move_to(0, 1)
-        self.lcd.putstr("Cible: " + str(self.target) + " cm")
+    def _draw_player_turn(self):
+        # Balle qui rebondit sur les positions 5-15 (11 cases)
+        anim_pos = self._blink_tick % 20
+        if anim_pos > 10:
+            anim_pos = 20 - anim_pos
+        anim_str = " " * anim_pos + "o" + " " * (10 - anim_pos)  # 11 chars
+        if self._needs_redraw:
+            self.lcd.clear()
+            self.lcd.putstr("J" + str(self._current_player) + ":   " + anim_str)
+            self.lcd.move_to(0, 1)
+            self.lcd.putstr("Appuyer -> OK   ")
+            self._needs_redraw = False
+        else:
+            self.lcd.move_to(5, 0)
+            self.lcd.putstr(anim_str)
 
     def _draw_confirm(self):
         self.lcd.clear()
@@ -79,17 +94,30 @@ class Round:
 
         if self._state == self._ANNOUNCE:
             if self._needs_redraw:
+                self.led1.value(0)
+                self.led2.value(0)
                 self._draw_announce()
                 self._needs_redraw = False
             if released:
+                self._blink_tick = 0
                 self._state = self._PLAYER_TURN
                 self._needs_redraw = True
 
         elif self._state == self._PLAYER_TURN:
             dist = self._measure()
-            self._draw_player_turn(dist)
+            self._blink_tick += 1
+            self._draw_player_turn()
+            if self._current_player == 1:
+                self.led1.value((self._blink_tick // 4) % 2)
+            else:
+                self.led2.value((self._blink_tick // 4) % 2)
             if released:
                 self._distances[self._current_player - 1] = dist
+                if self._current_player == 1:
+                    self.led1.value(1)
+                else:
+                    self.led2.value(1)
+                self._blink_tick = 0
                 self._state = self._CONFIRM
                 self._needs_redraw = True
 

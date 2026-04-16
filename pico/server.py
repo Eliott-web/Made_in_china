@@ -31,11 +31,22 @@ def update_game_state(**kwargs):
 
 
 def _setup_ap():
+    import time
     ap = network.WLAN(network.AP_IF)
+    ap.active(False)
+    time.sleep_ms(1000)
     ap.active(True)
-    ap.config(essid="MadeInChina", password="12345678")
-    while not ap.active():
-        pass
+    ap.config(essid="MadeInChina", password="12345678", channel=6)
+    for _ in range(100):
+        if ap.active():
+            break
+        time.sleep_ms(100)
+    # Attendre que l'IP soit assignée (sinon 0.0.0.0)
+    for _ in range(100):
+        if ap.ifconfig()[0] != "0.0.0.0":
+            break
+        time.sleep_ms(100)
+    print("AP ready, IP:", ap.ifconfig()[0])
 
 
 def _parse_request(raw):
@@ -64,17 +75,23 @@ def _respond_json(conn, body, status="200 OK"):
 
 
 def _serve_file(conn, filepath):
+    import os
     ext  = filepath.rsplit(".", 1)[-1]
     mime = {"html": "text/html", "css": "text/css", "js": "text/javascript"}.get(ext, "text/plain")
     try:
-        with open(filepath, "r") as f:
-            content = f.read().encode()
+        size = os.stat(filepath)[6]
         conn.send(
             "HTTP/1.1 200 OK\r\n"
             "Content-Type: {}; charset=utf-8\r\n"
-            "Content-Length: {}\r\n\r\n".format(mime, len(content))
+            "Cache-Control: no-store\r\n"
+            "Content-Length: {}\r\n\r\n".format(mime, size)
         )
-        conn.send(content)
+        with open(filepath, "rb") as f:
+            while True:
+                chunk = f.read(512)
+                if not chunk:
+                    break
+                conn.write(chunk)
     except OSError:
         conn.send("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n")
 
@@ -89,7 +106,11 @@ def _handle(conn):
         if b"\r\n\r\n" in raw:
             break
 
-    remaining_length = int(raw.split(b"content-length: ")[1].split(b"\r\n")[0]) if b"content-length: " in raw.lower() else 0
+    if b"\r\n\r\n" not in raw:
+        conn.close()
+        return
+    raw_lower = raw.lower()
+    remaining_length = int(raw_lower.split(b"content-length: ")[1].split(b"\r\n")[0]) if b"content-length: " in raw_lower else 0
     body_start = raw.index(b"\r\n\r\n") + 4
     while len(raw) - body_start < remaining_length:
         raw += conn.recv(256)
@@ -104,11 +125,11 @@ def _handle(conn):
             "Access-Control-Allow-Headers: Content-Type\r\n\r\n"
         )
     elif method == "GET" and path == "/":
-        _serve_file(conn, "site.html")
-    elif method == "GET" and path == "/script.js":
-        _serve_file(conn, "script.js")
+        _serve_file(conn, "pico/site/site.html")
+    elif method == "GET" and path == "/script_site.js":
+        _serve_file(conn, "pico/site/script_site.js")
     elif method == "GET" and path == "/style.css":
-        _serve_file(conn, "style.css")
+        _serve_file(conn, "pico/site/style.css")
     elif method == "GET" and path == "/data":
         _respond_json(conn, _game_state)
     elif method == "GET" and path == "/db":
@@ -156,6 +177,8 @@ def poll():
         conn.settimeout(2.0)
         try:
             _handle(conn)
+        except Exception as e:
+            print("handler error:", e)
         finally:
             conn.close()
     except OSError:

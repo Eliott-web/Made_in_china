@@ -1,14 +1,16 @@
+from HCSR04 import HCSR04
 from machine import Pin
 from utime import sleep
 
-pin = Pin("LED", Pin.OUT)
+led1 = Pin(17, Pin.OUT)
+led2 = Pin(16, Pin.OUT)
+sensor = HCSR04(14, 15)
 
-print("LED starts flashing...")
+def test():
+    led1.on()
+    led2.on()
+
+test()
+
 while True:
-    try:
-        pin.toggle()
-        sleep(1) # sleep 1sec
-    except KeyboardInterrupt:
-        break
-pin.off()
-print("Finished.")
+    print(sensor.distance_cm())
